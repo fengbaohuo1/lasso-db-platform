@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark light">
+  <title>DB Platform · 数据源工作台</title>
+  <script>
+    // 在样式加载前确定主题，避免首屏闪烁；默认深色。
+    (function () {
+      var saved = null;
+      try { saved = localStorage.getItem('dbp-theme'); } catch (e) { /* 忽略隐私模式限制 */ }
+      document.documentElement.dataset.theme = saved === 'light' ? 'light' : 'dark';
+    })();
+  </script>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="grid.css">
+  <link rel="stylesheet" href="dialogs.css">
+</head>
+<body>
+  <header class="toolbar">
+    <div class="brand">
+      <span class="brand-mark">DB</span>
+      <div class="brand-text">
+        <strong>DB Platform</strong>
+        <small>数据源工作台</small>
+      </div>
+    </div>
+
+    <div class="toolbar-group">
+      <button id="newConnectionBtn" class="btn" title="注册新的数据库数据源">新建数据源</button>
+      <button id="refreshBtn" class="btn" title="刷新当前数据源与标签页">刷新</button>
+    </div>
+    <span class="toolbar-sep"></span>
+    <div class="toolbar-group">
+      <button id="newQueryBtn" class="btn" title="新建 SQL 控制台（Ctrl+T）">新建查询</button>
+      <button id="runBtn" class="btn primary" title="执行当前 SQL 控制台（Ctrl+Enter）">执行</button>
+      <button id="explainBtn" class="btn" title="查看执行计划">解释</button>
+      <button id="exportBtn" class="btn" title="把当前结果导出 CSV">导出 CSV</button>
+    </div>
+
+    <div class="toolbar-spacer"></div>
+
+    <label class="switch" title="写模式只控制前端二次确认；真正的闸门在后端 allowWrite + confirmed">
+      <input type="checkbox" id="writeToggle">
+      <span>写模式</span>
+    </label>
+    <button id="aiToggle" class="btn hidden" aria-expanded="false" title="打开/收起 AI 助手（需在设置中配置 Agent 地址）">AI 助手</button>
+    <button id="themeToggle" class="btn icon-only theme-toggle" aria-label="切换主题" title="切换浅色 / 深色主题">
+      <svg class="theme-icon sun" viewBox="0 0 16 16" aria-hidden="true">
+        <circle cx="8" cy="8" r="3.1" fill="currentColor"/>
+        <g stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+          <path d="M8 1.4v2M8 12.6v2M1.4 8h2M12.6 8h2"/>
+          <path d="M3.5 3.5l1.4 1.4M11.1 11.1l1.4 1.4M12.5 3.5l-1.4 1.4M4.9 11.1l-1.4 1.4"/>
+        </g>
+      </svg>
+      <svg class="theme-icon moon" viewBox="0 0 16 16" aria-hidden="true">
+        <path d="M13.6 9.9A5.7 5.7 0 0 1 6.1 2.4 5.7 5.7 0 1 0 13.6 9.9z" fill="currentColor"/>
+      </svg>
+    </button>
+    <button id="settingsBtn" class="btn" title="数据源 / 查询设置">设置</button>
+  </header>
+
+  <div class="workbench">
+    <aside class="tree-pane" aria-label="数据库对象树">
+      <div class="pane-head">
+        <span class="pane-title">数据库</span>
+        <div class="pane-actions">
+          <button id="refreshTreeBtn" class="icon-btn" title="刷新对象树">刷新</button>
+        </div>
+      </div>
+      <div class="tree-search">
+        <input id="treeSearch" type="search" placeholder="搜索表 / 视图…" autocomplete="off">
+      </div>
+      <div id="tree" class="tree">
+        <div class="tree-hint">正在加载数据源…</div>
+      </div>
+    </aside>
+
+    <div class="pane-resizer" data-resizer="tree" title="拖动调整左栏宽度，双击恢复默认"></div>
+
+    <section class="editor-pane">
+      <div class="tab-bar-wrap">
+        <div id="tabBar" class="tab-bar" role="tablist">
+          <div id="tabEmpty" class="tab-empty">未打开标签</div>
+        </div>
+        <button id="tabMenuBtn" class="tab-menu-btn" title="标签管理">标签管理</button>
+      </div>
+      <div id="tabContent" class="tab-content">
+        <div id="welcome" class="welcome">
+          <h2>数据库工作台</h2>
+          <p>从左侧展开数据源，双击表打开数据；也可以新建 SQL 控制台。</p>
+          <table class="shortcuts">
+            <tbody>
+              <tr><td>Ctrl+T</td><td>新建查询</td></tr>
+              <tr><td>Ctrl+Enter</td><td>执行当前 SQL（有选区时只执行选区）</td></tr>
+              <tr><td>Ctrl+W</td><td>关闭当前标签</td></tr>
+              <tr><td>双击单元格</td><td>复制单元格内容</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <div class="pane-resizer hidden" data-resizer="ai" title="拖动调整 AI 面板宽度，双击恢复默认"></div>
+
+    <aside id="aiPanel" class="ai-panel" aria-label="AI 助手">
+      <div class="ai-head">
+        <div class="ai-head-main">
+          <strong>AI 助手</strong>
+          <small>harness Agent · 可调用 db_* 工具</small>
+          <div class="ai-session-row">
+            <button id="aiSessionBtn" class="ai-session-btn" title="切换会话">
+              <span id="aiSessionTitle">新对话</span>
+              <span class="ai-session-caret">▾</span>
+            </button>
+            <span class="spacer"></span>
+            <button id="aiNewSession" class="ai-session-action-text" title="新建对话">新对话</button>
+            <button id="aiDeleteSession" class="ai-session-action-text" title="删除当前对话">删除</button>
+          </div>
+        </div>
+        <button id="aiClose" class="icon-btn" title="收起 AI 助手">收起</button>
+      </div>
+      <div id="aiMessages" class="ai-messages">
+        <div class="ai-empty">
+          <p>用自然语言问数据库，例如：</p>
+          <button class="ai-suggestion" data-question="按状态统计订单数量和金额">按状态统计订单数量和金额</button>
+          <button class="ai-suggestion" data-question="哪些商品库存低于 60？给出商品名和库存">哪些商品库存低于 60？</button>
+          <button class="ai-suggestion" data-question="列出最近 5 笔订单的客户名、状态和金额">最近 5 笔订单</button>
+        </div>
+      </div>
+      <div class="ai-compose">
+        <textarea id="aiInput" rows="2" placeholder="输入问题，Enter 发送，Shift+Enter 换行"></textarea>
+        <div class="ai-compose-actions">
+          <span id="aiStatus" class="hint"></span>
+          <button id="aiStop" class="btn small hidden">停止</button>
+          <button id="aiSend" class="btn primary small">发送</button>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <footer class="status-bar">
+    <span id="statusConnection" class="status-item">未选择数据源</span>
+    <span id="statusSchema" class="status-item muted"></span>
+    <span class="status-sep"></span>
+    <span id="statusRows" class="status-item">行数 -</span>
+    <span id="statusElapsed" class="status-item">耗时 -</span>
+    <span id="statusTruncated" class="status-item warn hidden">结果已截断</span>
+    <span class="status-spacer"></span>
+    <span id="statusWrite" class="status-item">写模式：关</span>
+    <span id="statusApi" class="status-item muted" title="API base">API: 同源</span>
+  </footer>
+
+  <div id="contextMenu" class="context-menu hidden" role="menu"></div>
+
+  <div id="connectionModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="connectionModalTitle">
+    <div class="modal-card">
+      <div class="modal-head">
+        <h3 id="connectionModalTitle">新建数据源</h3>
+        <button id="connectionModalClose" class="icon-btn" title="关闭">关闭</button>
+      </div>
+      <div class="modal-body">
+        <div id="demoNotice" class="notice hidden">演示库是内置 H2 文件库，只读：不可修改或删除。</div>
+        <div class="field-row">
+          <label class="field">
+            <span>数据源类型</span>
+            <select id="connType">
+              <option value="mysql">MySQL</option>
+              <option value="h2-demo">H2 演示库（内置只读）</option>
+              <option value="custom">自定义 JDBC URL</option>
+            </select>
+          </label>
+          <label class="field">
+            <span>数据源名称</span>
+            <input id="connName" type="text" placeholder="例如：生产库（MySQL）">
+          </label>
+        </div>
+        <div id="mysqlFields">
+          <div class="field-row">
+            <label class="field grow">
+              <span>主机</span>
+              <input id="connHost" type="text" placeholder="127.0.0.1 或 db.internal">
+            </label>
+            <label class="field narrow">
+              <span>端口</span>
+              <input id="connPort" type="number" min="1" max="65535" placeholder="3306">
+            </label>
+          </div>
+          <label class="field">
+            <span>数据库</span>
+            <input id="connDatabase" type="text" placeholder="例如：app">
+          </label>
+        </div>
+        <div id="credentialFields">
+          <div class="field-row">
+            <label class="field">
+              <span>用户名</span>
+              <input id="connUser" type="text" placeholder="MySQL 用户（如 root）">
+            </label>
+            <label class="field">
+              <span>密码</span>
+              <input id="connPassword" type="password" autocomplete="new-password" placeholder="可留空">
+            </label>
+          </div>
+          <label class="checkbox">
+            <input id="connSavePassword" type="checkbox">
+            <span>保存密码（明文写入 db-service 的 data/connections.json）</span>
+          </label>
+          <p class="field-hint">未勾选「保存密码」时，密码只保留在 db-service 进程内存，服务重启后需重新输入。</p>
+          <p id="connPasswordState" class="field-hint warn-hint hidden"></p>
+        </div>
+        <p id="connTypeHint" class="hint"></p>
+        <details id="advancedFields" class="advanced">
+          <summary>高级：JDBC URL 覆盖</summary>
+          <label class="field">
+            <span>JDBC URL</span>
+            <input id="connUrl" type="text" placeholder="jdbc:h2:mem:apptest;DB_CLOSE_DELAY=-1">
+          </label>
+          <p class="hint">填写后覆盖按字段拼出的 URL；自定义类型必须填写以 jdbc: 开头的 URL。</p>
+        </details>
+        <div id="connTestResult" class="test-result hidden"></div>
+      </div>
+      <div class="modal-foot">
+        <button id="deleteConnectionBtn" class="btn danger">删除数据源</button>
+        <span class="spacer"></span>
+        <button id="connectionTestBtn" class="btn" title="使用已保存配置测试（新数据源请先保存）">测试连接</button>
+        <button id="connectionSaveBtn" class="btn primary">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="settingsModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="settingsModalTitle">
+    <div class="modal-card settings-card">
+      <div class="modal-head">
+        <h3 id="settingsModalTitle">设置</h3>
+        <button id="settingsModalClose" class="icon-btn" title="关闭">关闭</button>
+      </div>
+      <div class="settings-tabs" id="settingsTabs">
+        <button class="settings-tab active" data-settings-tab="general">通用</button>
+        <button class="settings-tab" data-settings-tab="incremental">增量</button>
+      </div>
+      <div id="settingsBody" class="modal-body settings-body"></div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast hidden" role="status"></div>
+
+  <script src="core.js" defer></script>
+  <script src="grid.js" defer></script>
+  <script src="tree.js" defer></script>
+  <script src="tabs.js" defer></script>
+  <script src="incremental.js" defer></script>
+  <script src="console.js" defer></script>
+  <script src="connection.js" defer></script>
+  <script src="settings.js" defer></script>
+  <script src="ai.js" defer></script>
+  <script src="ai-sessions.js" defer></script>
+  <script src="workspace.js" defer></script>
+  <script src="app.js" defer></script>
+</body>
+</html>
+
+
+

@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "DB Platform 桌面主窗口最小权限面：页面只做 fetch（直连 127.0.0.1 内置 db-service），不需要 IPC/插件权限",
+  "windows": ["main"],
+  "permissions": ["core:default"]
+}

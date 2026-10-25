@@ -1,0 +1,8 @@
+# 桌面端构建产物 / 内嵌后端制品：不纳入版本库
+src-tauri/target/
+src-tauri/gen/
+runtime/*.jar
+verify-window.png
+verify-cdp.json
+verify-app.out.log
+verify-app.err.log

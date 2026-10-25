@@ -1,0 +1,54 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "DB Platform",
+  "version": "1.0.0",
+  "identifier": "com.jnf.dbplatform.desktop",
+  "build": {
+    "frontendDist": "../../public"
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "create": false,
+        "title": "DB Platform · 数据源工作台",
+        "width": 1440,
+        "height": 900,
+        "minWidth": 1120,
+        "minHeight": 720,
+        "center": true,
+        "resizable": true,
+        "visible": true
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["nsis"],
+    "publisher": "JNF",
+    "category": "DeveloperTool",
+    "shortDescription": "DB Platform 数据源工作台（内嵌 db-service）",
+    "longDescription": "DB Platform 独立桌面端：内嵌 db-service 后端，数据写入本机应用数据目录，前端直连内置 HTTP 服务，不依赖 Node BFF。",
+    "resources": {
+      "../runtime": "runtime"
+    },
+    "windows": {
+      "nsis": {
+        "installMode": "currentUser",
+        "languages": ["SimpChinese", "English"],
+        "displayLanguageSelector": false,
+        "installerHooks": "installer-hooks.nsh"
+      }
+    },
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ]
+  }
+}

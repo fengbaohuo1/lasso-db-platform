@@ -1,0 +1,10 @@
+# build / runtime
+**/target/
+**/node_modules/
+db-service/data/
+db-platform/data/
+**/*.log
+db-platform/verify-ui/
+db-platform/desktop/runtime/
+db-platform/desktop/src-tauri/gen/
+*.tmp

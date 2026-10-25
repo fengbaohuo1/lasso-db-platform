@@ -1,0 +1,22 @@
+server:
+  port: 18090
+
+spring:
+  application:
+    name: db-service
+
+db-service:
+  # 数据目录：连接清单、演示库、增量配置、日志都在这里（相对项目根目录）
+  data-dir: ./data
+  # 行级编辑/execute 等写操作总开关；请求仍需 confirmed=true
+  allow-write: false
+  # 单次查询/数据浏览返回上限
+  max-rows: 200
+  # 增量读取单页上限
+  incremental-max-limit: 1000
+
+logging:
+  file:
+    name: ./data/logs/db-service.log
+  level:
+    root: info

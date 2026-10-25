@@ -1,0 +1,21 @@
+[package]
+name = "db-platform-desktop"
+version = "1.0.0"
+edition = "2021"
+rust-version = "1.77"
+description = "DB Platform 桌面壳：Tauri 2 托管内嵌 db-service 后端"
+
+[lib]
+name = "db_platform_desktop_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+# 与 jnf-desktop / db-manager desktop 保持同一版本线（复用本机 cargo 缓存）
+tauri-build = { version = "=2.7.0", features = [] }
+
+[dependencies]
+tauri = { version = "=2.12.0", features = [] }
+
+# Windows：把 java 子进程放进 Job Object，桌面进程异常退出（含被强杀）时随句柄关闭一并结束
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_Security", "Win32_System_JobObjects", "Win32_System_Threading"] }
